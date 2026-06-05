@@ -36,6 +36,27 @@
   const stage=document.getElementById('stage'), big=document.getElementById('big'),
         msg=document.getElementById('msg'), small=document.getElementById('small');
   let state='idle', t0=0, timer=null, best=+(localStorage.rrBest||0);
+  // --- shareable result card + challenge deep-link ---
+  const _qs=new URLSearchParams(location.search);
+  function _gameURL(p){ return location.origin+location.pathname+(p?('?'+p):''); }
+  async function shareCard(title,bigTxt,sub,text){
+    try{
+      const c=document.createElement('canvas'); c.width=c.height=1080; const x=c.getContext('2d');
+      const g=x.createLinearGradient(0,0,1080,1080); g.addColorStop(0,'#1a0f3d'); g.addColorStop(1,'#070510'); x.fillStyle=g; x.fillRect(0,0,1080,1080);
+      x.fillStyle='rgba(22,242,200,.10)'; x.beginPath(); x.arc(540,430,380,0,7); x.fill(); x.textAlign='center';
+      x.fillStyle='#fff'; x.font='bold 66px Arial'; x.fillText(title,540,250);
+      x.fillStyle='#16f2c8'; x.font='bold 210px Arial'; x.fillText(bigTxt,540,610);
+      x.fillStyle='#ff3df0'; x.font='bold 54px Arial'; x.fillText(sub,540,740);
+      x.fillStyle='#c9b8ff'; x.font='bold 44px Arial'; x.fillText('VIBE ARCADE',540,960);
+      x.fillStyle='#8a7fb0'; x.font='30px Arial'; x.fillText('64johnlee.github.io/vibe-arcade',540,1012);
+      const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+      const file=new File([blob],'vibe-arcade.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],text}); return; }
+      const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download='vibe-arcade.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(u),3000);
+      try{ await navigator.clipboard.writeText(text); }catch(_){}
+    }catch(_){ try{ await navigator.clipboard.writeText(text); }catch(__){} }
+  }
+  const _chBeat=_qs.get('beat'); if(_chBeat) msg.textContent=`🎯 Friend's time: ${_chBeat} ms — beat it! Tap to start.`;
   function setClass(c){ stage.className=c; }
   function showBest(){ small.textContent = best?`Best: ${best} ms`:''; }
   showBest();
@@ -51,8 +72,9 @@
     if(!best||ms<best){ best=ms; localStorage.rrBest=best; small.innerHTML=`🏆 NEW BEST! &nbsp; <button class="sharebtn" id="sh">📲 Beat my time</button>`; }
     else small.innerHTML=`Best: ${best} ms &nbsp; <button class="sharebtn" id="sh">📲 Beat my time</button>`;
     const sh=document.getElementById('sh');
-    sh.onclick=async(e)=>{ e.stopPropagation(); const t=`I reacted in ${ms}ms ⚡ on Reaction Royale — think you're faster? 🏆`;
-      if(navigator.share){try{await navigator.share({text:t});return;}catch(_){}} try{await navigator.clipboard.writeText(t);}catch(_){} sh.textContent='Copied! 📸'; };
+    sh.onclick=(e)=>{ e.stopPropagation();
+      shareCard('REACTION ROYALE', ms+' ms', tier, `I reacted in ${ms}ms ⚡ on Reaction Royale — beat me 👉 ${_gameURL('beat='+ms)}`);
+      sh.textContent='Shared 📸'; };
     big.dataset.ms=ms;
   }
   function tooSoon(){ clearTimeout(timer); state='soon'; setClass('soon'); big.textContent='TOO SOON 🚩'; msg.textContent='Tap to try again'; showBest(); }
