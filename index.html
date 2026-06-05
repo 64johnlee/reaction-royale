@@ -20,6 +20,7 @@
   .big { font-size:64px; line-height:1.05; margin:6px 0; }
   .msg { font-size:20px; max-width:420px; }
   .small { font-size:15px; opacity:.9; margin-top:10px; }
+  .challenge { font-size:14px; color:#16f2c8; margin-top:6px; min-height:18px; font-weight:900; letter-spacing:.5px; }
   .sharebtn { margin-top:18px; font-family:inherit; font-weight:900; font-size:16px; padding:12px 20px;
     border:none; border-radius:12px; color:#08060f; background:#fff; cursor:pointer; }
 </style>
@@ -30,15 +31,17 @@
     <div class="big" id="big">TAP TO START</div>
     <div class="msg" id="msg">Wait for green, then tap as fast as you can.</div>
     <div class="small" id="small"></div>
+    <div class="challenge" id="ch"></div>
   </div>
 <script>
 (() => {
   const stage=document.getElementById('stage'), big=document.getElementById('big'),
-        msg=document.getElementById('msg'), small=document.getElementById('small');
+        msg=document.getElementById('msg'), small=document.getElementById('small'), chEl=document.getElementById('ch');
   let state='idle', t0=0, timer=null, best=+(localStorage.rrBest||0);
   // --- shareable result card + challenge deep-link ---
   const _qs=new URLSearchParams(location.search);
   function _gameURL(p){ return location.origin+location.pathname+(p?('?'+p):''); }
+  const _rawB=_qs.get('beat'); const _chBeat=(_rawB&&/^\d+$/.test(_rawB))?+_rawB:0;
   async function shareCard(title,bigTxt,sub,text){
     try{
       const c=document.createElement('canvas'); c.width=c.height=1080; const x=c.getContext('2d');
@@ -50,34 +53,40 @@
       x.fillStyle='#c9b8ff'; x.font='bold 44px Arial'; x.fillText('VIBE ARCADE',540,960);
       x.fillStyle='#8a7fb0'; x.font='30px Arial'; x.fillText('64johnlee.github.io/vibe-arcade',540,1012);
       const blob=await new Promise(r=>c.toBlob(r,'image/png'));
+      if(!blob) throw new Error('canvas export failed');
       const file=new File([blob],'vibe-arcade.png',{type:'image/png'});
       if(navigator.canShare&&navigator.canShare({files:[file]})){ await navigator.share({files:[file],text}); return; }
       const u=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=u; a.download='vibe-arcade.png'; a.click(); setTimeout(()=>URL.revokeObjectURL(u),3000);
       try{ await navigator.clipboard.writeText(text); }catch(_){}
     }catch(_){ try{ await navigator.clipboard.writeText(text); }catch(__){} }
   }
-  const _chBeat=_qs.get('beat'); if(_chBeat) msg.textContent=`🎯 Friend's time: ${_chBeat} ms — beat it! Tap to start.`;
+  if(_chBeat){ msg.textContent=`🎯 Friend's time: ${_chBeat} ms — beat it! Tap to start.`; chEl.textContent='🎯 TARGET: '+_chBeat+' ms'; }
   function setClass(c){ stage.className=c; }
   function showBest(){ small.textContent = best?`Best: ${best} ms`:''; }
   showBest();
   function arm(){
-    state='wait'; setClass('wait'); big.textContent='WAIT…'; msg.textContent='Don’t tap until it turns green'; small.textContent='';
+    state='wait'; setClass('wait'); big.textContent='WAIT…'; msg.textContent="Don't tap until it turns green"; small.textContent='';
+    if(_chBeat) chEl.textContent='🎯 TARGET: '+_chBeat+' ms';
     const delay=1200+Math.random()*2800;
-    timer=setTimeout(()=>{ state='go'; setClass('go'); big.textContent='TAP!'; msg.textContent=''; t0=performance.now(); }, delay);
+    timer=setTimeout(()=>{ state='go'; setClass('go'); big.textContent='TAP!'; msg.textContent='';
+      if(_chBeat) chEl.textContent='🎯 TARGET: '+_chBeat+' ms';
+      t0=performance.now(); }, delay);
   }
   function result(ms){
     state='result'; setClass('result'); big.textContent=ms+' ms';
     const tier = ms<200?'⚡ Lightning fingers':ms<300?'🔥 Quick':ms<450?'🙂 Decent':'🐢 Sleepy';
     msg.textContent=tier;
-    if(!best||ms<best){ best=ms; localStorage.rrBest=best; small.innerHTML=`🏆 NEW BEST! &nbsp; <button class="sharebtn" id="sh">📲 Beat my time</button>`; }
-    else small.innerHTML=`Best: ${best} ms &nbsp; <button class="sharebtn" id="sh">📲 Beat my time</button>`;
+    const beatLine = _chBeat ? (ms<_chBeat ? ' · 🎯 CHALLENGE BEATEN!' : ' · 🎯 missed by '+(ms-_chBeat)+'ms') : '';
+    chEl.textContent='';
+    if(!best||ms<best){ best=ms; localStorage.rrBest=best; small.innerHTML=`🏆 NEW BEST!${beatLine} &nbsp; <button class="sharebtn" id="sh" aria-label="Share your reaction time">📲 Beat my time</button>`; }
+    else small.innerHTML=`Best: ${best} ms${beatLine} &nbsp; <button class="sharebtn" id="sh" aria-label="Share your reaction time">📲 Beat my time</button>`;
     const sh=document.getElementById('sh');
-    sh.onclick=(e)=>{ e.stopPropagation();
-      shareCard('REACTION ROYALE', ms+' ms', tier, `I reacted in ${ms}ms ⚡ on Reaction Royale — beat me 👉 ${_gameURL('beat='+ms)}`);
-      sh.textContent='Shared 📸'; };
+    sh.onclick=(e)=>{ e.stopPropagation(); sh.textContent='…';
+      shareCard('REACTION ROYALE', ms+' ms', tier, `I reacted in ${ms}ms ⚡ on Reaction Royale — beat me 👉 ${_gameURL('beat='+ms)}`)
+        .then(()=>{ sh.textContent='Shared 📸'; }); };
     big.dataset.ms=ms;
   }
-  function tooSoon(){ clearTimeout(timer); state='soon'; setClass('soon'); big.textContent='TOO SOON 🚩'; msg.textContent='Tap to try again'; showBest(); }
+  function tooSoon(){ clearTimeout(timer); state='soon'; setClass('soon'); big.textContent='TOO SOON 🚩'; msg.textContent='Tap to try again'; showBest(); chEl.textContent=_chBeat?'🎯 TARGET: '+_chBeat+' ms':''; }
   stage.addEventListener('pointerdown',(e)=>{
     if(e.target.id==='sh') return;
     if(state==='idle'||state==='result'||state==='soon') return arm();
