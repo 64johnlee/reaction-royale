@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<link rel="icon" href="data:image/svg+xml,<svg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%20100%20100'><text%20y='.9em'%20font-size='90'>⏱️</text></svg>" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Reaction Royale</title>
+<style>
+  * { box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent; user-select:none; }
+  html,body { height:100%; }
+  body { font-family:"Arial Black",system-ui,sans-serif; color:#fff; touch-action:manipulation; }
+  #stage { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center; padding:24px; transition:background .08s; cursor:pointer; }
+  .idle { background:radial-gradient(circle at 50% 25%,#241152,#08060f); }
+  .wait { background:#c0392b; }
+  .go   { background:#15d36b; }
+  .result { background:radial-gradient(circle at 50% 25%,#10324a,#08060f); }
+  .soon { background:#7a2230; }
+  h1 { font-size:30px; margin-bottom:10px; text-shadow:0 0 16px rgba(0,0,0,.4); }
+  .big { font-size:64px; line-height:1.05; margin:6px 0; }
+  .msg { font-size:20px; max-width:420px; }
+  .small { font-size:15px; opacity:.9; margin-top:10px; }
+  .sharebtn { margin-top:18px; font-family:inherit; font-weight:900; font-size:16px; padding:12px 20px;
+    border:none; border-radius:12px; color:#08060f; background:#fff; cursor:pointer; }
+</style>
+</head>
+<body>
+  <div id="stage" class="idle">
+    <h1>⏱️ Reaction Royale</h1>
+    <div class="big" id="big">TAP TO START</div>
+    <div class="msg" id="msg">Wait for green, then tap as fast as you can.</div>
+    <div class="small" id="small"></div>
+  </div>
+<script>
+(() => {
+  const stage=document.getElementById('stage'), big=document.getElementById('big'),
+        msg=document.getElementById('msg'), small=document.getElementById('small');
+  let state='idle', t0=0, timer=null, best=+(localStorage.rrBest||0);
+  function setClass(c){ stage.className=c; }
+  function showBest(){ small.textContent = best?`Best: ${best} ms`:''; }
+  showBest();
+  function arm(){
+    state='wait'; setClass('wait'); big.textContent='WAIT…'; msg.textContent='Don’t tap until it turns green'; small.textContent='';
+    const delay=1200+Math.random()*2800;
+    timer=setTimeout(()=>{ state='go'; setClass('go'); big.textContent='TAP!'; msg.textContent=''; t0=performance.now(); }, delay);
+  }
+  function result(ms){
+    state='result'; setClass('result'); big.textContent=ms+' ms';
+    const tier = ms<200?'⚡ Lightning fingers':ms<300?'🔥 Quick':ms<450?'🙂 Decent':'🐢 Sleepy';
+    msg.textContent=tier;
+    if(!best||ms<best){ best=ms; localStorage.rrBest=best; small.innerHTML=`🏆 NEW BEST! &nbsp; <button class="sharebtn" id="sh">📲 Beat my time</button>`; }
+    else small.innerHTML=`Best: ${best} ms &nbsp; <button class="sharebtn" id="sh">📲 Beat my time</button>`;
+    const sh=document.getElementById('sh');
+    sh.onclick=async(e)=>{ e.stopPropagation(); const t=`I reacted in ${ms}ms ⚡ on Reaction Royale — think you're faster? 🏆`;
+      if(navigator.share){try{await navigator.share({text:t});return;}catch(_){}} try{await navigator.clipboard.writeText(t);}catch(_){} sh.textContent='Copied! 📸'; };
+    big.dataset.ms=ms;
+  }
+  function tooSoon(){ clearTimeout(timer); state='soon'; setClass('soon'); big.textContent='TOO SOON 🚩'; msg.textContent='Tap to try again'; showBest(); }
+  stage.addEventListener('pointerdown',(e)=>{
+    if(e.target.id==='sh') return;
+    if(state==='idle'||state==='result'||state==='soon') return arm();
+    if(state==='wait') return tooSoon();
+    if(state==='go') return result(Math.round(performance.now()-t0));
+  });
+})();
+</script>
+</body>
+</html>
