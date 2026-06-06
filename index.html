@@ -12,7 +12,8 @@
   #stage { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
     text-align:center; padding:24px; transition:background .08s; cursor:pointer; }
   .idle { background:radial-gradient(circle at 50% 25%,#241152,#08060f); }
-  .wait { background:#c0392b; }
+  @keyframes redpulse { 0%,100%{background:#c0392b} 50%{background:#5c1010} }
+  .wait { background:#c0392b; animation:redpulse 1.4s ease-in-out infinite; }
   .go   { background:#15d36b; }
   .result { background:radial-gradient(circle at 50% 25%,#10324a,#08060f); }
   .soon { background:#7a2230; }
@@ -23,6 +24,8 @@
   .challenge { font-size:14px; color:#16f2c8; margin-top:6px; min-height:18px; font-weight:900; letter-spacing:.5px; }
   @keyframes tapglow { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
   .go .big { animation:tapglow .45s ease-in-out infinite; }
+  @keyframes shake { 0%,100%{transform:translateX(0)} 20%,60%{transform:translateX(-12px)} 40%,80%{transform:translateX(12px)} }
+  .soon .big { animation:shake .38s ease-out; }
   .badge { display:inline-block; padding:5px 20px; border-radius:50px; font-size:20px; font-weight:900; letter-spacing:.5px; margin-top:4px; }
   .sharebtn { margin-top:18px; font-family:inherit; font-weight:900; font-size:16px; padding:12px 20px;
     border:none; border-radius:12px; color:#08060f; background:#fff; cursor:pointer; }
@@ -78,7 +81,9 @@
   function result(ms){
     state='result'; setClass('result');
     const [tc,tier]=ms<200?['#16f2c8','⚡ Lightning']:ms<300?['#ffe15d','🔥 Quick']:ms<450?['#ff9d3d','🙂 Decent']:['#ff5d6c','🐢 Sleepy'];
-    big.textContent=ms+' ms'; big.style.cssText='font-size:86px;color:'+tc+';text-shadow:0 0 50px '+tc+'99';
+    big.style.cssText='font-size:86px;color:'+tc+';text-shadow:0 0 50px '+tc+'99';
+    let _s=ms+Math.floor(Math.random()*140+60); big.textContent=_s+' ms';
+    const _iv=setInterval(()=>{ _s=Math.max(ms,_s-Math.floor(Math.random()*20+8)); big.textContent=_s+' ms'; if(_s<=ms) clearInterval(_iv); },30);
     msg.innerHTML='<span class="badge" style="background:'+tc+';color:#08060f">'+tier+'</span>';
     const beatLine = _chBeat ? (ms<_chBeat ? ' · 🎯 CHALLENGE BEATEN!' : ' · 🎯 missed by '+(ms-_chBeat)+'ms') : '';
     chEl.textContent='';
