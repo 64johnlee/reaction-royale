@@ -21,6 +21,9 @@
   .msg { font-size:20px; max-width:420px; }
   .small { font-size:15px; opacity:.9; margin-top:10px; }
   .challenge { font-size:14px; color:#16f2c8; margin-top:6px; min-height:18px; font-weight:900; letter-spacing:.5px; }
+  @keyframes tapglow { 0%,100%{transform:scale(1)} 50%{transform:scale(1.07)} }
+  .go .big { animation:tapglow .45s ease-in-out infinite; }
+  .badge { display:inline-block; padding:5px 20px; border-radius:50px; font-size:20px; font-weight:900; letter-spacing:.5px; margin-top:4px; }
   .sharebtn { margin-top:18px; font-family:inherit; font-weight:900; font-size:16px; padding:12px 20px;
     border:none; border-radius:12px; color:#08060f; background:#fff; cursor:pointer; }
 </style>
@@ -65,7 +68,7 @@
   function showBest(){ small.textContent = best?`Best: ${best} ms`:''; }
   showBest();
   function arm(){
-    state='wait'; setClass('wait'); big.textContent='WAIT…'; msg.textContent="Don't tap until it turns green"; small.textContent='';
+    state='wait'; setClass('wait'); big.textContent='WAIT…'; big.style.cssText=''; msg.textContent="Don't tap until it turns green"; small.textContent='';
     if(_chBeat) chEl.textContent='🎯 TARGET: '+_chBeat+' ms';
     const delay=1200+Math.random()*2800;
     timer=setTimeout(()=>{ state='go'; setClass('go'); big.textContent='TAP!'; msg.textContent='';
@@ -73,9 +76,10 @@
       t0=performance.now(); }, delay);
   }
   function result(ms){
-    state='result'; setClass('result'); big.textContent=ms+' ms';
-    const tier = ms<200?'⚡ Lightning fingers':ms<300?'🔥 Quick':ms<450?'🙂 Decent':'🐢 Sleepy';
-    msg.textContent=tier;
+    state='result'; setClass('result');
+    const [tc,tier]=ms<200?['#16f2c8','⚡ Lightning']:ms<300?['#ffe15d','🔥 Quick']:ms<450?['#ff9d3d','🙂 Decent']:['#ff5d6c','🐢 Sleepy'];
+    big.textContent=ms+' ms'; big.style.cssText='font-size:86px;color:'+tc+';text-shadow:0 0 50px '+tc+'99';
+    msg.innerHTML='<span class="badge" style="background:'+tc+';color:#08060f">'+tier+'</span>';
     const beatLine = _chBeat ? (ms<_chBeat ? ' · 🎯 CHALLENGE BEATEN!' : ' · 🎯 missed by '+(ms-_chBeat)+'ms') : '';
     chEl.textContent='';
     if(!best||ms<best){ best=ms; localStorage.rrBest=best; small.innerHTML=`🏆 NEW BEST!${beatLine} &nbsp; <button class="sharebtn" id="sh" aria-label="Share your reaction time">📲 Beat my time</button>`; }
@@ -86,7 +90,7 @@
         .then(()=>{ sh.textContent='Shared 📸'; }); };
     big.dataset.ms=ms;
   }
-  function tooSoon(){ clearTimeout(timer); state='soon'; setClass('soon'); big.textContent='TOO SOON 🚩'; msg.textContent='Tap to try again'; showBest(); chEl.textContent=_chBeat?'🎯 TARGET: '+_chBeat+' ms':''; }
+  function tooSoon(){ clearTimeout(timer); state='soon'; setClass('soon'); big.textContent='TOO SOON 🚩'; big.style.cssText=''; msg.textContent='Tap to try again'; showBest(); chEl.textContent=_chBeat?'🎯 TARGET: '+_chBeat+' ms':''; }
   stage.addEventListener('pointerdown',(e)=>{
     if(e.target.id==='sh') return;
     if(state==='idle'||state==='result'||state==='soon') return arm();
